@@ -1,0 +1,39 @@
+# Dependabot: cada lunes GitHub revisa si hay versiones nuevas de las
+# dependencias y abre un pull request por actualización. Cada pull request pasa
+# por el CI (pruebas, tipos, imagen Docker) y por la auditoría antes de que
+# decidas aceptarlo.
+#
+# Además de esto, conviene activar en GitHub las "alertas de Dependabot"
+# (Settings → Code security): avisan en cuanto se publica una vulnerabilidad
+# que afecte a poetry.lock, sin esperar al lunes.
+
+version: 2
+
+updates:
+  # Dependencias de Python (pyproject.toml + poetry.lock)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    # Las actualizaciones menores y de parche llegan juntas en un solo pull
+    # request; las mayores (que pueden romper algo) llegan una por una.
+    groups:
+      python-menores:
+        update-types: ["minor", "patch"]
+
+  # Acciones usadas en .github/workflows/ (checkout, setup-python, ...)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Mexico_City"
+    commit-message:
+      prefix: "ci"

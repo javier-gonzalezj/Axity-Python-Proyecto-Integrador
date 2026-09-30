@@ -1,0 +1,67 @@
+# Auditoría de dependencias: busca vulnerabilidades conocidas (CVE y avisos de
+# seguridad) en las versiones exactas que instala poetry.lock.
+#
+# Corre en cada push y pull request, y además cada lunes: las vulnerabilidades
+# se publican todos los días, así que un paquete limpio hoy puede tener un aviso
+# la próxima semana aunque el código no cambie.
+#
+# Si encuentra algo, el trabajo falla (en rojo) y el reporte JSON queda como
+# artefacto descargable: esa es la evidencia de cada auditoría.
+
+name: Auditoría de dependencias
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  schedule:
+    - cron: "17 13 * * 1" # lunes 13:17 UTC = 7:17 en la Ciudad de México
+  workflow_dispatch: # botón "Run workflow" en la pestaña Actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auditoria-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.13"
+  POETRY_VERSION: "2.5.1" # la misma versión que generó poetry.lock
+
+jobs:
+  pip-audit:
+    name: Vulnerabilidades conocidas (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Instalar Poetry
+        run: pipx install "poetry==${POETRY_VERSION}"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: poetry
+
+      # Todo: producción, extra "ml" y desarrollo. Así se audita cada paquete
+      # que alguien del proyecto llega a instalar.
+      - name: Instalar dependencias
+        run: poetry install --no-interaction --all-extras
+
+      # --skip-editable: el propio proyecto (libreria) no está en PyPI
+      # --desc: incluye la descripción de cada vulnerabilidad
+      - name: Auditar (falla si hay vulnerabilidades)
+        run: poetry run pip-audit --skip-editable --desc
+
+      - name: Generar el reporte JSON
+        if: always()
+        run: poetry run pip-audit --skip-editable --format json --output auditoria-dependencias.json || true
+
+      - name: Guardar el reporte
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: auditoria-dependencias
+          path: auditoria-dependencias.json
+          retention-days: 90
