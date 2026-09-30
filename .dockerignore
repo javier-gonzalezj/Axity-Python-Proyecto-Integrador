@@ -1,0 +1,30 @@
+# Lo que NO entra al contexto de "docker build". Menos archivos = builds más
+# rápidos y ningún dato privado dentro de la imagen.
+
+# Git y herramientas
+.git
+.github
+.gitignore
+.gitattributes
+.pre-commit-config.yaml
+.venv
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.coverage
+htmlcov
+dist
+*.egg-info
+
+# Datos y secretos: la base va en un volumen, no dentro de la imagen
+data
+logs
+.env
+*.tar.gz
+
+# No se necesitan para ejecutar la API
+tests
+Dockerfile
+.dockerignore

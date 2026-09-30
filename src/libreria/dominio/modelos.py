@@ -1,0 +1,139 @@
+from typing import Any, Literal, Self, TypedDict
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from libreria.dominio.excepciones import LibroInvalidoError, StockInsuficienteError
+
+
+class Autor(BaseModel):
+    """Autor de un libro. Se ordena alfabéticamente por nombre y luego por nacionalidad."""
+
+    model_config = ConfigDict(
+        frozen=True,  # inmutable y "hasheable": se puede meter en un set
+        extra="forbid",  # rechaza campos que no estén declarados
+        str_strip_whitespace=True,  # quita espacios al inicio y al final de los textos
+    )
+
+    nombre: str = Field(min_length=1)
+    nacionalidad: str = ""
+
+    def __lt__(self, otro: object) -> bool:
+        if not isinstance(otro, Autor):
+            return NotImplemented
+        return (self.nombre, self.nacionalidad) < (otro.nombre, otro.nacionalidad)
+
+
+class Libro(BaseModel):
+    """Libro del catálogo.
+
+    Se ordena por año de publicación, luego por título y al final por ISBN.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        validate_assignment=True,  # también valida al hacer libro.precio = ...
+    )
+
+    isbn: str = Field(min_length=1)
+    titulo: str = Field(min_length=1)
+    autor: Autor
+    genero: list[str]
+    año_publicacion: int = Field(ge=0, le=2100)
+    precio: float = Field(ge=0)
+    en_stock: bool
+    cantidad_disponible: int = Field(ge=0)
+    editorial: str
+
+    def __lt__(self, otro: object) -> bool:
+        if not isinstance(otro, Libro):
+            return NotImplemented
+        return (self.año_publicacion, self.titulo, self.isbn) < (
+            otro.año_publicacion,
+            otro.titulo,
+            otro.isbn,
+        )
+
+    # ── Inventario ──────────────────────────────────────────────────────────
+    # en_stock se deriva de cantidad_disponible: los dos métodos lo mantienen
+    # sincronizado para que nadie tenga que acordarse de hacerlo a mano.
+
+    def verificar_stock(self, cantidad: int) -> None:
+        """Lanza StockInsuficienteError si no hay `cantidad` ejemplares. No cambia nada."""
+        if cantidad > self.cantidad_disponible:
+            raise StockInsuficienteError(
+                f"'{self.titulo}': pediste {cantidad}, hay {self.cantidad_disponible}"
+            )
+
+    def retirar(self, cantidad: int) -> None:
+        """Descuenta ejemplares vendidos. Si no alcanzan, lanza el error y no cambia nada."""
+        self.verificar_stock(cantidad)
+        self.cantidad_disponible -= cantidad
+        self.en_stock = self.cantidad_disponible > 0
+
+    def reponer(self, cantidad: int) -> None:
+        """Regresa ejemplares al inventario (p. ej. al cancelar un pedido)."""
+        self.cantidad_disponible += cantidad
+        self.en_stock = self.cantidad_disponible > 0
+
+    def con_cambios(self, **cambios: Any) -> Self:
+        """Un libro NUEVO con los campos indicados cambiados; este no se modifica.
+
+        Pasa por desde_dict, así los datos nuevos cumplen las mismas reglas
+        (precio >= 0, título no vacío...) o se lanza LibroInvalidoError.
+        """
+        if "cantidad_disponible" in cambios:
+            cambios["en_stock"] = cambios["cantidad_disponible"] > 0
+        return self.desde_dict({**self.a_dict(), **cambios})
+
+    @classmethod
+    def desde_dict(cls, datos: dict[str, Any]) -> Self:
+        """Crea un Libro a partir de un diccionario como los del archivo JSON."""
+        try:
+            return cls.model_validate(datos)
+        except ValidationError as e:
+            raise LibroInvalidoError(f"Libro inválido:\n{e}") from None
+
+    def a_dict(self) -> dict[str, Any]:
+        """Convierte el Libro (incluyendo su Autor) a diccionario para guardarlo en JSON."""
+        return self.model_dump()
+
+
+Rol = Literal["cliente", "admin"]
+
+
+class Usuario(BaseModel):
+    """Cliente o administrador de la librería."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    id: int | None = None  # None mientras no se guarde en la base
+    nombre: str = Field(min_length=1)
+    email: str = Field(min_length=3)
+    telefono: str | None = None
+    rol: Rol = "cliente"
+    # password_hash NO está aquí a propósito: viaja aparte (RepositorioUsuarios) para que
+    # nunca termine en una respuesta de la API por accidente
+
+
+class Direccion(TypedDict):
+    """Dirección de la librería, tal como aparece en el archivo JSON."""
+
+    calle: str
+    colonia: str
+    ciudad: str
+    cp: str
+
+
+class Libreria(TypedDict):
+    """Datos completos de la librería una vez cargados.
+
+    Es un diccionario normal en tiempo de ejecución; el TypedDict solo le dice
+    a mypy qué claves tiene y de qué tipo es cada una.
+    """
+
+    nombre: str
+    direccion: Direccion
+    telefono: str
+    horario: str
+    libros: list[Libro]
