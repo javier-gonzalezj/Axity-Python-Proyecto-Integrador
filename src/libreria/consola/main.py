@@ -23,7 +23,7 @@ from libreria.infraestructura.utilidades import cronometro
 
 log = logging.getLogger(__name__)
 
-LIBROS_POR_PAGINA: Final = 3
+LIBROS_POR_PAGINA: Final = 5
 
 MENU: Final = """
 ═════════════ MENU ═════════════

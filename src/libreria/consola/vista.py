@@ -1,6 +1,7 @@
 """Presentación en consola: todo lo que imprime información para el usuario."""
 
 import math
+import os
 from itertools import batched
 
 from libreria.dominio.modelos import Libreria, Libro
@@ -22,6 +23,7 @@ def mostrar_libreria(data: Libreria, por_pagina: int = 5) -> None:
     paginado de `por_pagina` en `por_pagina`.
     """
 
+    os.system("cls" if os.name == "nt" else "clear")
     print(f"📚 {data['nombre']}")
     print(
         f"📍 {data['direccion']['calle']}, "
