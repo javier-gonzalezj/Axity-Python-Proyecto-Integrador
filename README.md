@@ -218,7 +218,7 @@ flowchart TB
 │   └── analitica/         # datos sintéticos y modelo de best sellers
 ├── tests/                 # 393 pruebas (ver "Desarrollo")
 ├── migraciones/           # migraciones de Alembic (0001–0003)
-├── data/                  # catálogo JSON y ejemplos; la base, portadas y modelos no se suben a git
+├── data/                  # catálogo JSON, respaldos de pruebas y ejemplos; la base, portadas y modelos no se suben a git
 ├── docs/                  # detalles técnicos
 ├── CHANGELOG.md           # historial de cambios
 ├── .github/               # integración continua, auditoría y Dependabot
