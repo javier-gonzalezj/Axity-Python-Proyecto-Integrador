@@ -37,7 +37,7 @@ jobs:
       - name: Instalar Poetry
         run: pipx install "poetry==${POETRY_VERSION}"
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: poetry # reutiliza las dependencias entre ejecuciones
@@ -68,7 +68,7 @@ jobs:
       - name: Instalar Poetry
         run: pipx install "poetry==${POETRY_VERSION}"
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: poetry
